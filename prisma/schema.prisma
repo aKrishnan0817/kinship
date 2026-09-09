@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon's pooled endpoint can't run migrations, so those use the direct one.
+  directUrl = env("DIRECT_URL")
+}
+
+/// A union is a marriage or partnership. Modelling it as its own node (rather
+/// than parent pointers on Person) is what makes remarriage, half-siblings and
+/// unmarried parents fall out correctly instead of needing special cases.
+model Union {
+  id        String   @id @default(cuid())
+  status    String   @default("married")
+  startDate String?
+  endDate   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  partners UnionPartner[]
+  children Person[]       @relation("UnionChildren")
+}
+
+model UnionPartner {
+  unionId  String
+  personId String
+
+  union  Union  @relation(fields: [unionId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([unionId, personId])
+  @@index([personId])
+}
+
+model Person {
+  id         String  @id @default(cuid())
+  firstName  String
+  lastName   String?
+  maidenName String?
+  nickname   String?
+  gender     String?
+  birthDate  String?
+  deathDate  String?
+  deceased   Boolean @default(false)
+
+  photoUrl String?
+  /// How the photo is framed inside the circular avatar: object-position
+  /// percentages plus a zoom factor, so a face off to one side stays visible.
+  photoX     Float @default(50)
+  photoY     Float @default(50)
+  photoScale Float @default(1)
+
+  bio      String?
+  email    String?
+  phone    String?
+  location String?
+  socials  String?
+
+  /// Marks the viewer's own node. Kinship terms are phrased relative to this.
+  isSelf Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The union this person was born into. A person has at most one; adoption
+  /// and unknown parentage are represented by leaving it null.
+  childOfUnionId String?
+  childOfUnion   Union?  @relation("UnionChildren", fields: [childOfUnionId], references: [id], onDelete: SetNull)
+
+  unions UnionPartner[]
+
+  @@index([childOfUnionId])
+}

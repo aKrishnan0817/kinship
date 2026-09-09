@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# family data — never commit real people's contact details or photos
+/prisma/*.db
+/prisma/*.db-journal
+/public/uploads/
+
+# migration snapshots contain real personal data
+/migration-data/
