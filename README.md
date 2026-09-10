@@ -52,6 +52,11 @@ cases, and it gives the layout engine something sane to work with. A person's
 
 Quick-add stays open on Enter so you can type a whole generation in one go.
 
+On a phone the detail panel becomes a bottom sheet: tapping someone opens a peek
+with their photo, name and how they're related to you, and the chevron or an
+upward swipe expands it to the full form. Swipe down to back out. The canvas
+pans and pinch-zooms, and the framing icon in the header recentres the tree.
+
 ## Relationship naming
 
 `src/lib/kinship.ts` computes the lowest common ancestor and turns the two

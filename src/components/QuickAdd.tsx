@@ -62,12 +62,12 @@ export function QuickAdd({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/20 pt-[18vh] backdrop-blur-[2px]"
-      onMouseDown={onClose}
+      className="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/20 p-3 pt-[10vh] backdrop-blur-[2px] md:p-0 md:pt-[18vh]"
+      onPointerDown={onClose}
     >
       <div
-        className="w-[460px] rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="w-full max-w-[460px] rounded-2xl border border-stone-200 bg-white p-4 shadow-2xl md:p-5"
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="mb-3 text-[13px] text-stone-500">
           Add a <span className="font-semibold text-stone-800">{LABELS[relation]}</span> for{" "}
@@ -95,7 +95,7 @@ export function QuickAdd({
               key={g}
               type="button"
               onClick={() => setGender((cur) => (cur === g ? null : g))}
-              className={`rounded-md border px-3 py-1 text-[12px] capitalize transition-colors ${
+              className={`rounded-md border px-3 py-2 text-[13px] capitalize transition-colors md:py-1 md:text-[12px] ${
                 gender === g
                   ? "border-amber-400 bg-amber-50 text-amber-900"
                   : "border-stone-200 text-stone-500 hover:border-stone-300"
@@ -109,7 +109,7 @@ export function QuickAdd({
             type="button"
             onClick={submit}
             disabled={!name.trim() || busy}
-            className="rounded-md bg-stone-900 px-3.5 py-1.5 text-[12px] font-medium text-white disabled:opacity-30"
+            className="rounded-md bg-stone-900 px-4 py-2 text-[13px] font-medium text-white disabled:opacity-30 md:px-3.5 md:py-1.5 md:text-[12px]"
           >
             Add
           </button>
@@ -132,10 +132,19 @@ export function QuickAdd({
           </div>
         )}
 
-        <div className="mt-4 text-[11px] text-stone-400">
+        <div className="mt-4 hidden text-[11px] text-stone-400 md:block">
           <kbd className="rounded border border-stone-200 px-1">Enter</kbd> adds and stays open ·{" "}
           <kbd className="rounded border border-stone-200 px-1">Esc</kbd> to finish
         </div>
+
+        {/* Nothing on a phone hints that the sheet stays open, or how to leave it. */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 w-full rounded-md border border-stone-200 py-2 text-[13px] text-stone-500 md:hidden"
+        >
+          Done
+        </button>
       </div>
     </div>
   );

@@ -17,8 +17,8 @@ export function EmptyState({ onCreated }: { onCreated: (id: string) => void }) {
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[#faf9f7]">
-      <div className="w-[420px]">
+    <div className="flex h-[100dvh] w-full items-center justify-center bg-[#faf9f7] px-6">
+      <div className="w-full max-w-[420px]">
         <h1 className="text-[22px] font-semibold text-stone-900">Start with yourself</h1>
         <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
           Add your own name first. Everyone else hangs off you, and every relationship gets
@@ -37,7 +37,7 @@ export function EmptyState({ onCreated }: { onCreated: (id: string) => void }) {
             <button
               key={g}
               onClick={() => setGender((cur) => (cur === g ? null : g))}
-              className={`rounded-md border px-3 py-1 text-[12px] capitalize ${
+              className={`rounded-md border px-3 py-2 text-[13px] capitalize md:py-1 md:text-[12px] ${
                 gender === g
                   ? "border-amber-400 bg-amber-50 text-amber-900"
                   : "border-stone-200 text-stone-500 hover:border-stone-300"
@@ -50,7 +50,7 @@ export function EmptyState({ onCreated }: { onCreated: (id: string) => void }) {
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="rounded-md bg-stone-900 px-4 py-1.5 text-[12px] font-medium text-white disabled:opacity-30"
+            className="rounded-md bg-stone-900 px-4 py-2 text-[13px] font-medium text-white disabled:opacity-30 md:py-1.5 md:text-[12px]"
           >
             Begin
           </button>

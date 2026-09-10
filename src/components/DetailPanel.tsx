@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Avatar } from "./Avatar";
 import { Relation } from "./QuickAdd";
 import { deletePerson, setSelf, updatePerson } from "@/app/actions";
@@ -68,6 +68,40 @@ export function DetailPanel({
   onClose: () => void;
   onViewPhoto: () => void;
 }) {
+  /**
+   * Mobile only: the panel is a bottom sheet that opens as a peek — photo, name,
+   * how you're related — and expands to the full form. On desktop it stays a
+   * plain sidebar and this is ignored.
+   */
+  const [expanded, setExpanded] = useState(false);
+  const drag = useRef<{ y: number; moved: boolean } | null>(null);
+
+  function grabDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { y: e.clientY, moved: false };
+  }
+
+  function grabMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (drag.current && Math.abs(e.clientY - drag.current.y) > 5) drag.current.moved = true;
+  }
+
+  function grabUp(e: React.PointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    drag.current = null;
+    const dy = e.clientY - d.y;
+    if (!d.moved) {
+      setExpanded((v) => !v);
+    } else if (dy < -40) {
+      setExpanded(true);
+    } else if (dy > 60) {
+      // Swiping down backs out one step at a time rather than always dismissing.
+      if (expanded) setExpanded(false);
+      else onClose();
+    }
+  }
+
   async function patch(data: Parameters<typeof updatePerson>[1]) {
     await updatePerson(person.id, data);
     onChanged();
@@ -78,8 +112,22 @@ export function DetailPanel({
   const socials: Social[] = person.socials;
 
   return (
-    <aside className="flex h-full w-[340px] shrink-0 flex-col border-l border-stone-200 bg-white">
-      <div className="flex items-start gap-3 border-b border-stone-100 p-4">
+    <aside
+      className={`fixed inset-x-0 bottom-0 z-40 flex max-h-[88dvh] flex-col rounded-t-2xl border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_rgba(28,25,23,0.14)] md:static md:h-full md:w-[340px] md:max-h-none md:shrink-0 md:rounded-none md:border-l md:border-t-0 md:pb-0 md:shadow-none ${
+        expanded ? "h-[88dvh]" : ""
+      }`}
+    >
+      <div
+        onPointerDown={grabDown}
+        onPointerMove={grabMove}
+        onPointerUp={grabUp}
+        onPointerCancel={grabUp}
+        className="flex shrink-0 touch-none justify-center pb-1 pt-2.5 md:hidden"
+      >
+        <div className="h-1 w-10 rounded-full bg-stone-300" />
+      </div>
+
+      <div className="flex shrink-0 items-start gap-3 border-b border-stone-100 p-4 pt-2 md:pt-4">
         <button
           onClick={onViewPhoto}
           className="relative shrink-0"
@@ -109,13 +157,36 @@ export function DetailPanel({
           )}
           {person.isSelf && <div className="mt-0.5 text-[12px] text-amber-700">this is you</div>}
         </div>
-        <button onClick={onClose} className="text-stone-300 hover:text-stone-600" title="Close">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "Show less" : "Show all details"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center text-stone-400 active:text-stone-800 md:hidden"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+            aria-hidden
+          >
+            <path d="m6 15 6-6 6 6" />
+          </svg>
+        </button>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center text-stone-300 hover:text-stone-600 md:mr-0 md:h-auto md:w-auto"
+        >
           ✕
         </button>
       </div>
 
       {chain.length > 1 && (
-        <div className="border-b border-stone-100 bg-stone-50/60 px-4 py-3">
+        <div className="max-h-[26dvh] shrink-0 overflow-y-auto border-b border-stone-100 bg-stone-50/60 px-4 py-3 md:max-h-none">
           <div className="mb-1.5 text-[11px] uppercase tracking-wide text-stone-400">How you connect</div>
           <div className="space-y-0.5 text-[12px] leading-relaxed text-stone-600">
             {chain.map((line, i) => (
@@ -128,20 +199,21 @@ export function DetailPanel({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5 border-b border-stone-100 p-3">
+      <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-stone-100 p-3">
         {(["parent", "spouse", "child", "sibling"] as const).map((r) => (
           <button
             key={r}
             onClick={() => onAdd(r)}
-            className="rounded-md border border-stone-200 px-2.5 py-1 text-[12px] text-stone-600 transition-colors hover:border-amber-400 hover:bg-amber-50 hover:text-amber-900"
+            className="rounded-md border border-stone-200 px-3 py-1.5 text-[13px] text-stone-600 transition-colors hover:border-amber-400 hover:bg-amber-50 hover:text-amber-900 md:px-2.5 md:py-1 md:text-[12px]"
           >
             + {r}
           </button>
         ))}
       </div>
 
-      {/* Keyed on the person so every field's local draft resets when you select someone else. */}
-      <div key={person.id} className="flex-1 space-y-3.5 overflow-y-auto p-4">
+      <div
+        className={`flex-1 space-y-3.5 overflow-y-auto p-4 ${expanded ? "block" : "hidden"} md:block`}
+      >
         <div className="grid grid-cols-2 gap-2.5">
           <Field label="First name" value={person.firstName} onCommit={(v) => v.trim() && patch({ firstName: v })} />
           <Field label="Last name" value={person.lastName ?? ""} onCommit={(v) => patch({ lastName: v })} />
@@ -156,7 +228,7 @@ export function DetailPanel({
               <button
                 key={g}
                 onClick={() => patch({ gender: person.gender === g ? null : g })}
-                className={`rounded-md border px-2.5 py-1 text-[12px] capitalize ${
+                className={`rounded-md border px-3 py-1.5 text-[13px] capitalize md:px-2.5 md:py-1 md:text-[12px] ${
                   person.gender === g
                     ? "border-amber-400 bg-amber-50 text-amber-900"
                     : "border-stone-200 text-stone-500 hover:border-stone-300"
@@ -173,12 +245,12 @@ export function DetailPanel({
           <Field label="Died" value={person.deathDate ?? ""} placeholder="2019" onCommit={(v) => patch({ deathDate: v })} />
         </div>
 
-        <label className="flex items-center gap-2 text-[13px] text-stone-600">
+        <label className="flex items-center gap-2 py-1 text-[13px] text-stone-600">
           <input
             type="checkbox"
             checked={person.deceased}
             onChange={(e) => patch({ deceased: e.target.checked })}
-            className="accent-amber-600"
+            className="h-4 w-4 accent-amber-600"
           />
           Deceased
         </label>
@@ -229,14 +301,18 @@ export function DetailPanel({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-t border-stone-100 p-3">
+      <div
+        className={`shrink-0 items-center gap-2 border-t border-stone-100 p-3 ${
+          expanded ? "flex" : "hidden"
+        } md:flex`}
+      >
         {!person.isSelf && (
           <button
             onClick={async () => {
               await setSelf(person.id);
               onChanged();
             }}
-            className="rounded-md border border-stone-200 px-2.5 py-1 text-[12px] text-stone-600 hover:border-amber-400 hover:bg-amber-50"
+            className="rounded-md border border-stone-200 px-3 py-1.5 text-[13px] text-stone-600 hover:border-amber-400 hover:bg-amber-50 md:px-2.5 md:py-1 md:text-[12px]"
           >
             This is me
           </button>
@@ -251,7 +327,7 @@ export function DetailPanel({
             if (fallback) onSelect(fallback);
             else onClose();
           }}
-          className="rounded-md px-2.5 py-1 text-[12px] text-stone-400 hover:bg-rose-50 hover:text-rose-600"
+          className="rounded-md px-3 py-1.5 text-[13px] text-stone-400 hover:bg-rose-50 hover:text-rose-600 md:px-2.5 md:py-1 md:text-[12px]"
         >
           Delete
         </button>

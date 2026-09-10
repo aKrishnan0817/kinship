@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Family",
   description: "Map who's who in the family",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Lets the layout reach under the notch and home indicator, which the
+  // env(safe-area-inset-*) padding then compensates for.
+  viewportFit: "cover",
+  themeColor: "#faf9f7",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

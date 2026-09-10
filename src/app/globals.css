@@ -11,12 +11,28 @@ body {
   background: #faf9f7;
   color: #1c1917;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  /* Dragging the canvas past its edge shouldn't pull-to-refresh the page. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .react-flow__node {
   cursor: pointer;
+  /* Long-pressing a node on touch should not start a text selection. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .react-flow__handle {
   pointer-events: none;
+}
+
+/* iOS zooms the whole page when it focuses a field smaller than 16px, and never
+   zooms back out. The compact type is a desktop affordance, so drop it on phones. */
+@media (max-width: 767px) {
+  input:not([type="range"]):not([type="checkbox"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }

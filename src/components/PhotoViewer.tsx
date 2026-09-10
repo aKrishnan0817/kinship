@@ -5,6 +5,7 @@ import { framingStyle } from "./Avatar";
 import { updatePerson } from "@/app/actions";
 import { Person, displayName } from "@/lib/types";
 
+/** Widest the crop circle gets; it shrinks to fit narrow screens. */
 const CROP_SIZE = 300;
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
@@ -26,6 +27,7 @@ export function PhotoViewer({
   const [error, setError] = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const cropRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -70,9 +72,12 @@ export function PhotoViewer({
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const d = dragging.current;
     if (!d) return;
+    // Measured, not assumed: the circle shrinks on narrow screens, and a stale
+    // size here would make the photo drift faster or slower than your finger.
+    const size = cropRef.current?.offsetWidth || CROP_SIZE;
     // Dragging right reveals more of the image's left edge, so the focal point moves left.
-    const nx = d.x - ((e.clientX - d.px) / CROP_SIZE) * 100;
-    const ny = d.y - ((e.clientY - d.py) / CROP_SIZE) * 100;
+    const nx = d.x - ((e.clientX - d.px) / size) * 100;
+    const ny = d.y - ((e.clientY - d.py) / size) * 100;
     setX(Math.min(100, Math.max(0, nx)));
     setY(Math.min(100, Math.max(0, ny)));
   }
@@ -88,14 +93,14 @@ export function PhotoViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/70 p-8 backdrop-blur-sm"
-      onMouseDown={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/70 backdrop-blur-sm sm:p-8"
+      onPointerDown={onClose}
     >
       <div
-        className="flex max-h-full w-auto max-w-[min(90vw,900px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="flex h-full w-full flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl sm:h-auto sm:max-h-full sm:w-auto sm:max-w-[min(90vw,900px)] sm:rounded-2xl sm:pb-0 sm:pt-0"
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 border-b border-stone-100 px-5 py-3">
+        <div className="flex shrink-0 items-center gap-3 border-b border-stone-100 px-4 py-3 sm:px-5">
           <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] font-semibold text-stone-900">
               {displayName(person)}
@@ -106,12 +111,16 @@ export function PhotoViewer({
               </div>
             )}
           </div>
-          <button onClick={onClose} className="text-stone-300 hover:text-stone-600">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center text-stone-300 hover:text-stone-600 sm:mr-0 sm:h-auto sm:w-auto"
+          >
             ✕
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-stone-50 p-6">
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-stone-50 p-4 sm:p-6">
           {!hasPhoto ? (
             <div className="px-10 py-16 text-center">
               <div className="text-[13px] text-stone-400">No photo yet</div>
@@ -125,8 +134,8 @@ export function PhotoViewer({
           ) : adjusting ? (
             <div className="flex flex-col items-center gap-4">
               <div
-                style={{ width: CROP_SIZE, height: CROP_SIZE }}
-                className="relative cursor-grab overflow-hidden rounded-full ring-4 ring-white active:cursor-grabbing"
+                ref={cropRef}
+                className="relative aspect-square w-[min(300px,72vw)] cursor-grab touch-none overflow-hidden rounded-full ring-4 ring-white active:cursor-grabbing"
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
@@ -142,7 +151,7 @@ export function PhotoViewer({
                 />
               </div>
 
-              <div className="flex w-[300px] items-center gap-3">
+              <div className="flex w-[min(300px,72vw)] items-center gap-3">
                 <span className="text-[11px] text-stone-400">Zoom</span>
                 <input
                   type="range"
@@ -153,7 +162,7 @@ export function PhotoViewer({
                   onChange={(e) => setScale(Number(e.target.value))}
                   onPointerUp={() => commit()}
                   onKeyUp={() => commit()}
-                  className="flex-1 accent-amber-600"
+                  className="h-6 flex-1 accent-amber-600"
                 />
                 <button
                   onClick={() => {
@@ -185,14 +194,14 @@ export function PhotoViewer({
             <img
               src={person.photoUrl!}
               alt={displayName(person)}
-              className="max-h-[65vh] max-w-full rounded-lg object-contain shadow-sm"
+              className="max-h-full max-w-full rounded-lg object-contain shadow-sm sm:max-h-[65dvh]"
             />
           )}
         </div>
 
         {error && <div className="px-5 pt-2 text-[12px] text-rose-600">{error}</div>}
 
-        <div className="flex items-center gap-2 border-t border-stone-100 px-5 py-3">
+        <div className="flex shrink-0 items-center gap-2 border-t border-stone-100 px-4 py-3 sm:px-5">
           <input
             ref={fileRef}
             type="file"
@@ -204,26 +213,28 @@ export function PhotoViewer({
             <>
               <button
                 onClick={() => setAdjusting((a) => !a)}
-                className={`rounded-md border px-3 py-1.5 text-[12px] transition-colors ${
+                className={`rounded-md border px-3 py-2 text-[12px] transition-colors sm:py-1.5 ${
                   adjusting
                     ? "border-amber-400 bg-amber-50 text-amber-900"
                     : "border-stone-200 text-stone-600 hover:border-stone-300"
                 }`}
               >
-                {adjusting ? "Done adjusting" : "Adjust framing"}
+                {adjusting ? "Done" : "Adjust"}
+                <span className="hidden sm:inline">{adjusting ? " adjusting" : " framing"}</span>
               </button>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="rounded-md border border-stone-200 px-3 py-1.5 text-[12px] text-stone-600 hover:border-stone-300"
+                className="rounded-md border border-stone-200 px-3 py-2 text-[12px] text-stone-600 hover:border-stone-300 sm:py-1.5"
               >
-                {uploading ? "Uploading…" : "Replace photo"}
+                {uploading ? "Uploading…" : "Replace"}
+                <span className="hidden sm:inline"> photo</span>
               </button>
             </>
           )}
           <div className="flex-1" />
           <button
             onClick={onClose}
-            className="rounded-md bg-stone-900 px-3.5 py-1.5 text-[12px] font-medium text-white"
+            className="rounded-md bg-stone-900 px-3.5 py-2 text-[12px] font-medium text-white sm:py-1.5"
           >
             Close
           </button>

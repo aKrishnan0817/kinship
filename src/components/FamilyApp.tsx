@@ -24,11 +24,63 @@ import { signOut } from "@/app/login/actions";
 import { GraphIndex, describeRelationship, renderChain } from "@/lib/kinship";
 import { PERSON_H, PERSON_W, Positioned, layoutGraph } from "@/lib/layout";
 import { FamilyGraph, displayName } from "@/lib/types";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const SHORTCUTS: Record<string, Relation> = { p: "parent", s: "spouse", c: "child", b: "sibling" };
 
 function Key({ k }: { k: string }) {
   return <kbd className="rounded border border-stone-200 bg-white px-1 text-stone-600">{k}</kbd>;
+}
+
+function Icon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-[18px] w-[18px] shrink-0 md:h-[15px] md:w-[15px]"
+      aria-hidden
+    >
+      {children}
+    </svg>
+  );
+}
+
+/**
+ * Icon-first so the controls still fit a phone; the label appears once there's
+ * room for it. Sized to a 40px touch target on mobile.
+ */
+function ToolButton({
+  label,
+  onClick,
+  disabled,
+  title,
+  type = "button",
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+  type?: "button" | "submit";
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      title={title ?? label}
+      aria-label={label}
+      className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white/90 text-stone-600 shadow-sm backdrop-blur transition-colors active:bg-stone-100 disabled:opacity-40 md:h-8 md:w-auto md:rounded-lg md:px-2.5 md:text-[12px] md:hover:border-stone-300"
+    >
+      {children}
+      <span className="hidden md:inline">{label}</span>
+    </button>
+  );
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -47,6 +99,24 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
   const [relateTargetId, setRelateTargetId] = useState<string | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const { setCenter, fitView } = useReactFlow();
+  const isMobile = useMediaQuery("(max-width: 767px)");
+
+  /**
+   * On mobile the header floats over the canvas and the detail sheet covers the
+   * bottom, so frame the tree into what's actually visible rather than into the
+   * whole viewport, where it would sit half-hidden behind them.
+   */
+  const framing = useMemo(() => {
+    if (!isMobile) return { fit: 0.15 as const, path: 0.3 as const };
+    // `as const` keeps these as the `${number}px` literals the padding type wants.
+    const box = {
+      top: "72px",
+      right: "16px",
+      bottom: selectedId ? "220px" : "32px",
+      left: "16px",
+    } as const;
+    return { fit: box, path: box };
+  }, [isMobile, selectedId]);
 
   const index = useMemo(() => new GraphIndex(graph), [graph]);
   const anchor = useMemo(
@@ -110,10 +180,10 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
     fitView({
       nodes: [...litIds].map((id) => ({ id })),
       duration: 600,
-      padding: 0.3,
+      padding: framing.path,
       maxZoom: 1,
     });
-  }, [relateTargetId, litIds, positions, fitView]);
+  }, [relateTargetId, litIds, positions, fitView, framing]);
 
   const nodes = useMemo<Node[]>(() => {
     const dim = (id: string) => Boolean(litIds && !litIds.has(id));
@@ -218,7 +288,7 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#faf9f7]">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-[#faf9f7]">
       <div className="relative min-w-0 flex-1">
         {/* Mounted only once elk has real coordinates, otherwise fitView frames nodes still at the origin. */}
         {positions.size > 0 ? (
@@ -227,7 +297,7 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
             edges={edges}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+            fitViewOptions={{ padding: framing.fit, maxZoom: 1 }}
             minZoom={0.05}
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
@@ -235,7 +305,12 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
             onPaneClick={() => setRelateTargetId(null)}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#e7e5e4" />
-            <Controls showInteractive={false} position="bottom-right" className="!shadow-sm" />
+            {/* Pinch-to-zoom covers this on touch, and it would sit under the sheet. */}
+            <Controls
+              showInteractive={false}
+              position="bottom-right"
+              className="!hidden !shadow-sm md:!flex"
+            />
           </ReactFlow>
         ) : (
           <div className="flex h-full items-center justify-center text-[13px] text-stone-400">
@@ -243,52 +318,72 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
           </div>
         )}
 
-        <div className="absolute left-4 top-4 rounded-xl border border-stone-200 bg-white/90 px-3.5 py-2.5 shadow-sm backdrop-blur">
-          <div className="text-[13px] font-semibold text-stone-900">Family</div>
-          <div className="text-[11px] text-stone-500">
-            {graph.people.length} {graph.people.length === 1 ? "person" : "people"}
-          </div>
-          {selected && (
-            <div className="mt-2 border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-400">
-              <div className="mb-1 text-stone-500">
-                Add to <span className="font-medium text-stone-700">{selected.firstName}</span>
-              </div>
-              <Key k="p" /> parent · <Key k="s" /> spouse
-              <br />
-              <Key k="c" /> child · <Key k="b" /> sibling
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:p-4">
+          <div className="pointer-events-auto rounded-xl border border-stone-200 bg-white/90 px-3 py-2 shadow-sm backdrop-blur md:px-3.5 md:py-2.5">
+            <div className="text-[13px] font-semibold leading-tight text-stone-900">Family</div>
+            <div className="text-[11px] leading-tight text-stone-500">
+              {graph.people.length} {graph.people.length === 1 ? "person" : "people"}
             </div>
-          )}
+            {selected && (
+              <div className="mt-2 hidden border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-400 md:block">
+                <div className="mb-1 text-stone-500">
+                  Add to <span className="font-medium text-stone-700">{selected.firstName}</span>
+                </div>
+                <Key k="p" /> parent · <Key k="s" /> spouse
+                <br />
+                <Key k="c" /> child · <Key k="b" /> sibling
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1" />
+
+          <div className="pointer-events-auto flex gap-1.5 md:gap-2">
+            <ToolButton label="Search" onClick={() => setPalette("search")}>
+              <Icon>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.6-3.6" />
+              </Icon>
+            </ToolButton>
+            <ToolButton
+              label="How am I related?"
+              onClick={() => setPalette("relate")}
+              disabled={!anchor}
+              title={anchor ? "How am I related?" : "Mark yourself in the tree first"}
+            >
+              <Icon>
+                <circle cx="12" cy="4.5" r="2.5" />
+                <circle cx="5" cy="19.5" r="2.5" />
+                <circle cx="19" cy="19.5" r="2.5" />
+                <path d="M12 7v4m0 0-7 6m7-6 7 6" />
+              </Icon>
+            </ToolButton>
+            {/* Mobile has no zoom controls, so this is the way back when you get lost. */}
+            <ToolButton
+              label="Recenter"
+              onClick={() => fitView({ padding: framing.fit, maxZoom: 1, duration: 400 })}
+            >
+              <Icon>
+                <path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3" />
+              </Icon>
+            </ToolButton>
+            {showSignOut && (
+              <form action={signOut}>
+                <ToolButton label="Sign out" type="submit">
+                  <Icon>
+                    <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" />
+                    <path d="m16 16 4-4-4-4M20 12H9" />
+                  </Icon>
+                </ToolButton>
+              </form>
+            )}
+          </div>
         </div>
 
-        <div className="absolute right-4 top-4 flex gap-2">
-          <button
-            onClick={() => setPalette("search")}
-            className="rounded-lg border border-stone-200 bg-white/90 px-3 py-1.5 text-[12px] text-stone-600 shadow-sm backdrop-blur hover:border-stone-300"
-          >
-            Search <kbd className="ml-1 text-stone-400">/</kbd>
-          </button>
-          <button
-            onClick={() => setPalette("relate")}
-            disabled={!anchor}
-            className="rounded-lg border border-stone-200 bg-white/90 px-3 py-1.5 text-[12px] text-stone-600 shadow-sm backdrop-blur hover:border-stone-300 disabled:opacity-40"
-            title={anchor ? undefined : "Mark yourself in the tree first"}
-          >
-            How am I related? <kbd className="ml-1 text-stone-400">r</kbd>
-          </button>
-          {showSignOut && (
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="rounded-lg border border-stone-200 bg-white/90 px-3 py-1.5 text-[12px] text-stone-500 shadow-sm backdrop-blur hover:border-stone-300 hover:text-stone-700"
-              >
-                Sign out
-              </button>
-            </form>
-          )}
-        </div>
-
+        {/* Hidden on mobile: the detail sheet already names the relationship and
+            shows the same chain, and this would sit on top of it. */}
         {relationship && anchor && relateTargetId && (
-          <div className="absolute bottom-6 left-1/2 w-[560px] -translate-x-1/2 rounded-xl border border-sky-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+          <div className="absolute bottom-6 left-1/2 hidden w-[560px] -translate-x-1/2 rounded-xl border border-sky-200 bg-white/95 p-4 shadow-lg backdrop-blur md:block">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] text-stone-500">
@@ -320,7 +415,10 @@ function Inner({ initialGraph, showSignOut }: { initialGraph: FamilyGraph; showS
       </div>
 
       {selected && (
+        /* Keyed on the person so the sheet re-collapses and every field's local
+           draft resets when you select someone else. */
         <DetailPanel
+          key={selected.id}
           person={selected}
           index={index}
           anchor={anchor}

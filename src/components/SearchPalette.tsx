@@ -40,12 +40,12 @@ export function SearchPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/20 pt-[14vh] backdrop-blur-[2px]"
-      onMouseDown={onClose}
+      className="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/20 p-3 pt-[9vh] backdrop-blur-[2px] md:p-0 md:pt-[14vh]"
+      onPointerDown={onClose}
     >
       <div
-        className="w-[520px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="w-full max-w-[520px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl"
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="border-b border-stone-100 px-4 pb-2 pt-3">
           <div className="mb-1.5 text-[11px] uppercase tracking-wide text-stone-400">{title}</div>
@@ -74,7 +74,7 @@ export function SearchPalette({
             className="w-full pb-2 text-[15px] outline-none placeholder:text-stone-300"
           />
         </div>
-        <div className="max-h-[46vh] overflow-y-auto p-1.5">
+        <div className="max-h-[52dvh] overflow-y-auto overscroll-contain p-1.5">
           {results.length === 0 && (
             <div className="px-3 py-6 text-center text-[13px] text-stone-400">No one found</div>
           )}
@@ -83,12 +83,14 @@ export function SearchPalette({
               key={p.id}
               onMouseEnter={() => setCursor(i)}
               onClick={() => onPick(p.id)}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left ${
+              className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left md:py-2 ${
                 i === cursor ? "bg-amber-50" : ""
               }`}
             >
               <Avatar person={p} size={30} />
-              <span className="flex-1 truncate text-[13px] text-stone-800">{displayName(p)}</span>
+              <span className="flex-1 truncate text-[14px] text-stone-800 md:text-[13px]">
+                {displayName(p)}
+              </span>
               <span className="text-[11px] tabular-nums text-stone-400">{lifespan(p)}</span>
             </button>
           ))}

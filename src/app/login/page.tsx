@@ -9,8 +9,8 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams;
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[#faf9f7]">
-      <div className="w-[360px]">
+    <div className="flex h-[100dvh] w-full items-center justify-center bg-[#faf9f7] px-6">
+      <div className="w-full max-w-[360px]">
         <h1 className="text-[22px] font-semibold text-stone-900">Family</h1>
         <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
           This tree is private. Enter the family password to come in.
